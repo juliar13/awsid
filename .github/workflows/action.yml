@@ -40,10 +40,17 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: us-west-2
 
-      - uses: ./.github/actions/claude-pr-action
+      # - uses: ./.github/actions/claude-pr-action
+      #   with:
+      #     trigger_phrase: "@claude"
+      #     timeout_minutes: "60"
+      #     github_token: ${{ steps.app-token.outputs.token }}
+      #     use_bedrock: "true"
+      #     anthropic_model: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+      - uses: anthropics/claude-code-action@beta
         with:
+          model: "arn:aws:bedrock:us-east-1:589268119010:inference-profile/us.anthropic.claude-sonnet-4-20250514-v1:0"
+          use_bedrock: "true"
+          github_token: ${{ steps.app-token.outputs.token }}
           trigger_phrase: "@claude"
           timeout_minutes: "60"
-          github_token: ${{ steps.app-token.outputs.token }}
-          use_bedrock: "true"
-          anthropic_model: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"

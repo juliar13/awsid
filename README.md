@@ -51,10 +51,29 @@ awsid yamasaki
 # yamasaki-prod: 123456789014
 ```
 
-JSON形式で出力：
+## 出力形式
+
+### 標準出力（デフォルト）
+
+完全一致の場合はアカウントIDのみ：
+```bash
+awsid yamasaki-test
+# 出力: 123456789012
+```
+
+部分一致や全表示の場合は「エイリアス名: アカウントID」形式：
+```bash
+awsid yamasaki
+# 出力:
+# yamasaki-test: 123456789012
+# yamasaki-test-dev: 123456789013
+# yamasaki-prod: 123456789014
+```
+
+### JSON形式（--jsonフラグ）
 
 ```bash
-awsid yamasaki-test --json
+awsid yamasaki --json
 # 出力:
 # {
 #     "account_info": [
@@ -63,8 +82,12 @@ awsid yamasaki-test --json
 #             "account_id": "123456789012"
 #         },
 #         {
-#             "alias_name": "yamasaki-test-dev",
+#             "alias_name": "yamasaki-test-dev", 
 #             "account_id": "123456789013"
+#         },
+#         {
+#             "alias_name": "yamasaki-prod",
+#             "account_id": "123456789014"
 #         }
 #     ]
 # }

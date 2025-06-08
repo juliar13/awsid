@@ -107,6 +107,17 @@ awsid yamasaki --table
 # +-------------------+----------------+
 ```
 
+### CSV形式（--csvフラグ）
+
+```bash
+awsid yamasaki --csv
+# 出力:
+# alias_name,account_id
+# yamasaki-test,123456789012
+# yamasaki-test-dev,123456789013
+# yamasaki-prod,123456789014
+```
+
 ## ライセンス
 
 MIT

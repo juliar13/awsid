@@ -15,16 +15,17 @@ brew install awsid
 
 ### 設定
 
-`~/.aws/account_info` ファイルに以下の形式でアカウント情報を記載します：
+`~/.aws/account_info` ファイルにCSV形式でアカウント情報を記載します：
 
+```csv
+alias_name,account_id
+yamasaki-test,123456789012
+yamasaki-test-dev,123456789013
+yamasaki-prod,123456789014
+other-account,987654321098
 ```
-# AWS Account information
-# Format: alias_name account_id
-yamasaki-test 123456789012
-yamasaki-test-dev 123456789013
-yamasaki-prod 123456789014
-other-account 987654321098
-```
+
+CSV形式はExcelなどのスプレッドシートアプリケーションからのインポート・エクスポートが容易で、データ管理が効率的です。
 
 ### コマンド
 

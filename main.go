@@ -21,14 +21,17 @@ type AccountInfoList struct {
 	Accounts []AccountInfo `json:"account_info"`
 }
 
+const Version = "0.2.0"
+
 func main() {
 	var jsonOutput bool
 	var tableOutput bool
 	var csvOutput bool
 	var rootCmd = &cobra.Command{
-		Use:   "awsid [alias_name]",
-		Short: "Get AWS account ID from alias name",
-		Long:  "A CLI tool to get AWS account ID from alias name",
+		Use:     "awsid [alias_name]",
+		Short:   "Get AWS account ID from alias name",
+		Long:    "A CLI tool to get AWS account ID from alias name",
+		Version: Version,
 		Args:  cobra.MinimumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Get home directory

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -23,6 +24,7 @@ type AccountInfoList struct {
 func main() {
 	var jsonOutput bool
 	var tableOutput bool
+	var csvOutput bool
 	var rootCmd = &cobra.Command{
 		Use:   "awsid [alias_name]",
 		Short: "Get AWS account ID from alias name",
@@ -52,6 +54,8 @@ func main() {
 					outputJSON(accounts)
 				} else if tableOutput {
 					outputTable(accounts)
+				} else if csvOutput {
+					outputCSV(accounts)
 				} else {
 					for _, account := range accounts {
 						fmt.Printf("%s: %s\n", account.AliasName, account.AccountID)
@@ -89,6 +93,8 @@ func main() {
 			if len(exactMatch) > 0 {
 				if tableOutput {
 					outputTable(exactMatch)
+				} else if csvOutput {
+					outputCSV(exactMatch)
 				} else {
 					fmt.Println(exactMatch[0].AccountID)
 				}
@@ -98,6 +104,12 @@ func main() {
 			// If table output is requested for partial matches
 			if tableOutput {
 				outputTable(matchingAccounts)
+				return
+			}
+
+			// If CSV output is requested for partial matches
+			if csvOutput {
+				outputCSV(matchingAccounts)
 				return
 			}
 
@@ -117,6 +129,7 @@ func main() {
 
 	rootCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 	rootCmd.Flags().BoolVar(&tableOutput, "table", false, "Output in table format")
+	rootCmd.Flags().BoolVar(&csvOutput, "csv", false, "Output in CSV format")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -183,4 +196,16 @@ func outputTable(accounts []AccountInfo) {
 	}
 
 	table.Render()
+}
+func outputCSV(accounts []AccountInfo) {
+	writer := csv.NewWriter(os.Stdout)
+	defer writer.Flush()
+
+	// Write header
+	writer.Write([]string{"alias_name", "account_id"})
+
+	// Write data
+	for _, account := range accounts {
+		writer.Write([]string{account.AliasName, account.AccountID})
+	}
 }

@@ -28,6 +28,13 @@ other-account 987654321098
 
 ### コマンド
 
+バージョンを確認：
+
+```bash
+awsid --version
+# 出力: awsid version 0.2.0
+```
+
 全てのアカウント情報を表示：
 
 ```bash

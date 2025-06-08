@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -149,32 +148,35 @@ func readAccountInfo(filePath string) ([]AccountInfo, error) {
 	defer file.Close()
 
 	accounts := []AccountInfo{}
-	scanner := bufio.NewScanner(file)
 
-	// Read line by line
-	for scanner.Scan() {
-		line := scanner.Text()
-		// Skip empty lines and comments
-		if line == "" || strings.HasPrefix(line, "#") {
+	// Read as CSV
+	csvReader := csv.NewReader(file)
+	csvReader.Comment = '#'
+	csvReader.TrimLeadingSpace = true
+	
+	records, err := csvReader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CSV file: %w", err)
+	}
+	
+	// Process CSV records
+	for i, record := range records {
+		// Skip header row if it looks like a header
+		if i == 0 && (record[0] == "alias_name" || record[0] == "AliasName") {
 			continue
 		}
-
-		// Split line by space or tab
-		parts := strings.Fields(line)
-		if len(parts) >= 2 {
+		
+		if len(record) >= 2 && record[0] != "" && record[1] != "" {
 			accounts = append(accounts, AccountInfo{
-				AliasName: parts[0],
-				AccountID: parts[1],
+				AliasName: strings.TrimSpace(record[0]),
+				AccountID: strings.TrimSpace(record[1]),
 			})
 		}
 	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
+	
 	return accounts, nil
 }
+
 
 func outputJSON(accounts []AccountInfo) {
 	output := AccountInfoList{

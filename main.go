@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +22,7 @@ type AccountInfoList struct {
 
 func main() {
 	var jsonOutput bool
+	var tableOutput bool
 	var rootCmd = &cobra.Command{
 		Use:   "awsid [alias_name]",
 		Short: "Get AWS account ID from alias name",
@@ -48,6 +50,8 @@ func main() {
 			if len(args) == 0 {
 				if jsonOutput {
 					outputJSON(accounts)
+				} else if tableOutput {
+					outputTable(accounts)
 				} else {
 					for _, account := range accounts {
 						fmt.Printf("%s: %s\n", account.AliasName, account.AccountID)
@@ -72,12 +76,29 @@ func main() {
 				return
 			}
 
-			// If exact match is found and not JSON, just print the account ID
+			// Check for exact match first
+			exactMatch := []AccountInfo{}
 			for _, account := range matchingAccounts {
 				if account.AliasName == searchTerm {
-					fmt.Println(account.AccountID)
-					return
+					exactMatch = append(exactMatch, account)
+					break
 				}
+			}
+
+			// If exact match found
+			if len(exactMatch) > 0 {
+				if tableOutput {
+					outputTable(exactMatch)
+				} else {
+					fmt.Println(exactMatch[0].AccountID)
+				}
+				return
+			}
+
+			// If table output is requested for partial matches
+			if tableOutput {
+				outputTable(matchingAccounts)
+				return
 			}
 
 			// If partial matches found, print them
@@ -95,6 +116,7 @@ func main() {
 	}
 
 	rootCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+	rootCmd.Flags().BoolVar(&tableOutput, "table", false, "Output in table format")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -150,4 +172,15 @@ func outputJSON(accounts []AccountInfo) {
 	}
 
 	fmt.Println(string(jsonData))
+}
+
+func outputTable(accounts []AccountInfo) {
+	table := tablewriter.NewTable(os.Stdout)
+	table.Header("Alias Name", "Account ID")
+
+	for _, account := range accounts {
+		table.Append([]any{account.AliasName, account.AccountID})
+	}
+
+	table.Render()
 }

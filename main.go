@@ -24,7 +24,7 @@ type AccountInfoList struct {
 	Accounts []AccountInfo `json:"account_info"`
 }
 
-const Version = "0.3.0"
+const Version = "0.4.0"
 
 func main() {
 	var jsonOutput bool

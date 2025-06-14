@@ -81,7 +81,7 @@ func main() {
 			matchingAccounts := []AccountInfo{}
 
 			for _, account := range accounts {
-				if strings.HasPrefix(account.AliasName, searchTerm) {
+				if strings.Contains(account.AliasName, searchTerm) {
 					matchingAccounts = append(matchingAccounts, account)
 				}
 			}

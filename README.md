@@ -15,7 +15,15 @@ brew install awsid
 
 ### 設定
 
-`~/.aws/account_info` ファイルにCSV形式でアカウント情報を記載します：
+#### アカウント情報の自動取得
+
+このツールは AWS Organizations API を使用してアカウント情報を自動的に取得し、`~/.aws/account_info` ファイルにCSV形式で保存します。
+
+**重要**: AWS Organizations API の呼び出しには us-east-1 リージョンが使用されます。これは AWS Organizations がグローバルサービスであり、標準的なリージョンとして us-east-1 が推奨されているためです。
+
+#### 手動設定（オプション）
+
+必要に応じて、`~/.aws/account_info` ファイルを手動で編集することも可能です：
 
 ```csv
 alias_name,account_id

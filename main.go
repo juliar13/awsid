@@ -232,8 +232,8 @@ func updateAccountInfoFromAWS(filePath string) error {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 
-	// Load AWS configuration
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	// Load AWS configuration with us-east-1 region (Organizations is global but requires a region)
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
 	if err != nil {
 		return fmt.Errorf("failed to load AWS config: %w", err)
 	}

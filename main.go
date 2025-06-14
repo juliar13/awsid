@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/organizations"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
@@ -41,7 +45,13 @@ func main() {
 			}
 
 			// Path to account_info file
-			accountInfoPath := homeDir + "/.aws/account_info"
+			accountInfoPath := filepath.Join(homeDir, ".aws", "account_info")
+
+			// Try to update account info from AWS Organizations
+			err = updateAccountInfoFromAWS(accountInfoPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to update account info from AWS: %v\n", err)
+			}
 
 			// Read account_info file
 			accounts, err := readAccountInfo(accountInfoPath)
@@ -213,4 +223,67 @@ func outputCSV(accounts []AccountInfo) {
 	for _, account := range accounts {
 		writer.Write([]string{account.AliasName, account.AccountID})
 	}
+}
+
+func updateAccountInfoFromAWS(filePath string) error {
+	// Create .aws directory if it doesn't exist
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+
+	// Load AWS configuration
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		return fmt.Errorf("failed to load AWS config: %w", err)
+	}
+
+	// Create Organizations client
+	client := organizations.NewFromConfig(cfg)
+
+	// List accounts
+	ctx := context.TODO()
+	result, err := client.ListAccounts(ctx, &organizations.ListAccountsInput{})
+	if err != nil {
+		return fmt.Errorf("failed to list accounts: %w", err)
+	}
+
+	// Prepare account info
+	var accounts []AccountInfo
+	for _, account := range result.Accounts {
+		if account.Id != nil && account.Name != nil {
+			accounts = append(accounts, AccountInfo{
+				AliasName: *account.Name,
+				AccountID: *account.Id,
+			})
+		}
+	}
+
+	// Save to CSV file
+	return saveAccountInfoToCSV(filePath, accounts)
+}
+
+func saveAccountInfoToCSV(filePath string, accounts []AccountInfo) error {
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", filePath, err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write header
+	if err := writer.Write([]string{"alias_name", "account_id"}); err != nil {
+		return fmt.Errorf("failed to write CSV header: %w", err)
+	}
+
+	// Write data
+	for _, account := range accounts {
+		if err := writer.Write([]string{account.AliasName, account.AccountID}); err != nil {
+			return fmt.Errorf("failed to write CSV data: %w", err)
+		}
+	}
+
+	return nil
 }

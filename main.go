@@ -16,12 +16,12 @@ import (
 )
 
 type AccountInfo struct {
-	ID            string `json:"id"`
-	Arn           string `json:"arn"`
-	Email         string `json:"email"`
-	Name          string `json:"name"`
-	Status        string `json:"status"`
-	JoinedMethod  string `json:"joined_method"`
+	ID              string `json:"id"`
+	Arn             string `json:"arn"`
+	Email           string `json:"email"`
+	Name            string `json:"name"`
+	Status          string `json:"status"`
+	JoinedMethod    string `json:"joined_method"`
 	JoinedTimestamp string `json:"joined_timestamp"`
 	// Backward compatibility fields
 	AliasName string `json:"alias_name"`
@@ -39,13 +39,30 @@ func main() {
 	var tableOutput bool
 	var csvOutput bool
 	var nameSearch string
+	var formatOption string
 	var rootCmd = &cobra.Command{
 		Use:     "awsid [alias_name]",
 		Short:   "Get AWS account ID from alias name",
-		Long:    "A CLI tool to get AWS account ID from alias name. Supports both positional arguments and --name option.",
+		Long:    "A CLI tool to get AWS account ID from alias name. Supports both positional arguments and --name option.\n\nOutput formats:\n  --format json     Output in JSON format\n  --format table    Output in table format\n  --format csv      Output in CSV format\n  --format standard Output in standard format (default)\n\nLegacy format flags (--json, --table, --csv) are also supported for backward compatibility.",
 		Version: Version,
-		Args:  cobra.MinimumNArgs(0),
+		Args:    cobra.MinimumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
+			// Validate format option if provided
+			if formatOption != "" {
+				validFormats := []string{"json", "table", "csv", "standard"}
+				validFormat := false
+				for _, format := range validFormats {
+					if formatOption == format {
+						validFormat = true
+						break
+					}
+				}
+				if !validFormat {
+					fmt.Fprintf(os.Stderr, "Error: Invalid format '%s'. Valid formats are: json, table, csv, standard\n", formatOption)
+					os.Exit(1)
+				}
+			}
+
 			// Get home directory
 			homeDir, err := os.UserHomeDir()
 			if err != nil {
@@ -129,7 +146,7 @@ func main() {
 				// If partial matches found, print them
 				if len(matchingAccounts) > 0 {
 					for _, account := range matchingAccounts {
-						fmt.Printf("ID: %s | ARN: %s | Email: %s | Name: %s | Status: %s | Method: %s | Joined: %s\n", 
+						fmt.Printf("ID: %s | ARN: %s | Email: %s | Name: %s | Status: %s | Method: %s | Joined: %s\n",
 							account.ID, account.Arn, account.Email, account.Name, account.Status, account.JoinedMethod, account.JoinedTimestamp)
 					}
 					return
@@ -148,7 +165,7 @@ func main() {
 					outputCSV(accounts)
 				} else {
 					for _, account := range accounts {
-						fmt.Printf("ID: %s | ARN: %s | Email: %s | Name: %s | Status: %s | Method: %s | Joined: %s\n", 
+						fmt.Printf("ID: %s | ARN: %s | Email: %s | Name: %s | Status: %s | Method: %s | Joined: %s\n",
 							account.ID, account.Arn, account.Email, account.Name, account.Status, account.JoinedMethod, account.JoinedTimestamp)
 					}
 				}
@@ -160,6 +177,7 @@ func main() {
 	rootCmd.Flags().BoolVar(&tableOutput, "table", false, "Output in table format")
 	rootCmd.Flags().BoolVar(&csvOutput, "csv", false, "Output in CSV format")
 	rootCmd.Flags().StringVar(&nameSearch, "name", "", "Search by account name (takes priority over positional argument)")
+	rootCmd.Flags().StringVar(&formatOption, "format", "", "Output format (json, table, csv, standard)")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -181,56 +199,55 @@ func readAccountInfo(filePath string) ([]AccountInfo, error) {
 	csvReader := csv.NewReader(file)
 	csvReader.Comment = '#'
 	csvReader.TrimLeadingSpace = true
-	
+
 	records, err := csvReader.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CSV file: %w", err)
 	}
-	
+
 	// Process CSV records
 	for i, record := range records {
 		// Skip header row if it looks like a header
 		if i == 0 && (len(record) > 0 && (record[0] == "alias_name" || record[0] == "AliasName" || record[0] == "id")) {
 			continue
 		}
-		
+
 		if len(record) >= 2 && record[0] != "" {
 			var account AccountInfo
-			
+
 			// Check if this is the new format (7 columns) or old format (2 columns)
 			if len(record) >= 7 {
 				// New format: id, arn, email, name, status, joined_method, joined_timestamp
 				account = AccountInfo{
-					ID:            strings.TrimSpace(record[0]),
-					Arn:           strings.TrimSpace(record[1]),
-					Email:         strings.TrimSpace(record[2]),
-					Name:          strings.TrimSpace(record[3]),
-					Status:        strings.TrimSpace(record[4]),
-					JoinedMethod:  strings.TrimSpace(record[5]),
+					ID:              strings.TrimSpace(record[0]),
+					Arn:             strings.TrimSpace(record[1]),
+					Email:           strings.TrimSpace(record[2]),
+					Name:            strings.TrimSpace(record[3]),
+					Status:          strings.TrimSpace(record[4]),
+					JoinedMethod:    strings.TrimSpace(record[5]),
 					JoinedTimestamp: strings.TrimSpace(record[6]),
 					// Backward compatibility
-					AliasName:     strings.TrimSpace(record[3]), // Name -> AliasName
-					AccountID:     strings.TrimSpace(record[0]), // ID -> AccountID
+					AliasName: strings.TrimSpace(record[3]), // Name -> AliasName
+					AccountID: strings.TrimSpace(record[0]), // ID -> AccountID
 				}
 			} else if len(record) >= 2 {
 				// Old format: alias_name, account_id
 				account = AccountInfo{
-					ID:            strings.TrimSpace(record[1]), // account_id -> ID
-					Name:          strings.TrimSpace(record[0]), // alias_name -> Name
-					AliasName:     strings.TrimSpace(record[0]),
-					AccountID:     strings.TrimSpace(record[1]),
+					ID:        strings.TrimSpace(record[1]), // account_id -> ID
+					Name:      strings.TrimSpace(record[0]), // alias_name -> Name
+					AliasName: strings.TrimSpace(record[0]),
+					AccountID: strings.TrimSpace(record[1]),
 				}
 			}
-			
+
 			if account.ID != "" {
 				accounts = append(accounts, account)
 			}
 		}
 	}
-	
+
 	return accounts, nil
 }
-
 
 func outputJSON(accounts []AccountInfo) {
 	output := AccountInfoList{
@@ -252,12 +269,12 @@ func outputTable(accounts []AccountInfo) {
 
 	for _, account := range accounts {
 		err := table.Append([]any{
-			account.ID, 
-			account.Arn, 
-			account.Email, 
-			account.Name, 
-			account.Status, 
-			account.JoinedMethod, 
+			account.ID,
+			account.Arn,
+			account.Email,
+			account.Name,
+			account.Status,
+			account.JoinedMethod,
 			account.JoinedTimestamp,
 		})
 		if err != nil {
@@ -281,12 +298,12 @@ func outputCSV(accounts []AccountInfo) {
 	// Write data
 	for _, account := range accounts {
 		if err := writer.Write([]string{
-			account.ID, 
-			account.Arn, 
-			account.Email, 
-			account.Name, 
-			account.Status, 
-			account.JoinedMethod, 
+			account.ID,
+			account.Arn,
+			account.Email,
+			account.Name,
+			account.Status,
+			account.JoinedMethod,
 			account.JoinedTimestamp,
 		}); err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing CSV row: %v\n", err)
@@ -323,13 +340,13 @@ func updateAccountInfoFromAWS(filePath string) error {
 	for _, account := range result.Accounts {
 		if account.Id != nil && account.Name != nil {
 			accountInfo := AccountInfo{
-				ID:     *account.Id,
-				Name:   *account.Name,
+				ID:   *account.Id,
+				Name: *account.Name,
 				// Backward compatibility
 				AliasName: *account.Name,
 				AccountID: *account.Id,
 			}
-			
+
 			if account.Arn != nil {
 				accountInfo.Arn = *account.Arn
 			}
@@ -341,7 +358,7 @@ func updateAccountInfoFromAWS(filePath string) error {
 			if account.JoinedTimestamp != nil {
 				accountInfo.JoinedTimestamp = account.JoinedTimestamp.Format("2006-01-02T15:04:05.000000-07:00")
 			}
-			
+
 			accounts = append(accounts, accountInfo)
 		}
 	}
@@ -368,12 +385,12 @@ func saveAccountInfoToCSV(filePath string, accounts []AccountInfo) error {
 	// Write data
 	for _, account := range accounts {
 		if err := writer.Write([]string{
-			account.ID, 
-			account.Arn, 
-			account.Email, 
-			account.Name, 
-			account.Status, 
-			account.JoinedMethod, 
+			account.ID,
+			account.Arn,
+			account.Email,
+			account.Name,
+			account.Status,
+			account.JoinedMethod,
 			account.JoinedTimestamp,
 		}); err != nil {
 			return fmt.Errorf("failed to write CSV data: %w", err)

@@ -16,6 +16,14 @@ import (
 )
 
 type AccountInfo struct {
+	ID            string `json:"id"`
+	Arn           string `json:"arn"`
+	Email         string `json:"email"`
+	Name          string `json:"name"`
+	Status        string `json:"status"`
+	JoinedMethod  string `json:"joined_method"`
+	JoinedTimestamp string `json:"joined_timestamp"`
+	// Backward compatibility fields
 	AliasName string `json:"alias_name"`
 	AccountID string `json:"account_id"`
 }
@@ -24,7 +32,7 @@ type AccountInfoList struct {
 	Accounts []AccountInfo `json:"account_info"`
 }
 
-const Version = "0.4.0"
+const Version = "0.5.0"
 
 func main() {
 	var jsonOutput bool
@@ -70,7 +78,8 @@ func main() {
 					outputCSV(accounts)
 				} else {
 					for _, account := range accounts {
-						fmt.Printf("%s: %s\n", account.AliasName, account.AccountID)
+						fmt.Printf("ID: %s | ARN: %s | Email: %s | Name: %s | Status: %s | Method: %s | Joined: %s\n", 
+							account.ID, account.Arn, account.Email, account.Name, account.Status, account.JoinedMethod, account.JoinedTimestamp)
 					}
 				}
 				return
@@ -128,7 +137,8 @@ func main() {
 			// If partial matches found, print them
 			if len(matchingAccounts) > 0 {
 				for _, account := range matchingAccounts {
-					fmt.Printf("%s: %s\n", account.AliasName, account.AccountID)
+					fmt.Printf("ID: %s | ARN: %s | Email: %s | Name: %s | Status: %s | Method: %s | Joined: %s\n", 
+						account.ID, account.Arn, account.Email, account.Name, account.Status, account.JoinedMethod, account.JoinedTimestamp)
 				}
 				return
 			}
@@ -172,15 +182,41 @@ func readAccountInfo(filePath string) ([]AccountInfo, error) {
 	// Process CSV records
 	for i, record := range records {
 		// Skip header row if it looks like a header
-		if i == 0 && (record[0] == "alias_name" || record[0] == "AliasName") {
+		if i == 0 && (len(record) > 0 && (record[0] == "alias_name" || record[0] == "AliasName" || record[0] == "id")) {
 			continue
 		}
 		
-		if len(record) >= 2 && record[0] != "" && record[1] != "" {
-			accounts = append(accounts, AccountInfo{
-				AliasName: strings.TrimSpace(record[0]),
-				AccountID: strings.TrimSpace(record[1]),
-			})
+		if len(record) >= 2 && record[0] != "" {
+			var account AccountInfo
+			
+			// Check if this is the new format (7 columns) or old format (2 columns)
+			if len(record) >= 7 {
+				// New format: id, arn, email, name, status, joined_method, joined_timestamp
+				account = AccountInfo{
+					ID:            strings.TrimSpace(record[0]),
+					Arn:           strings.TrimSpace(record[1]),
+					Email:         strings.TrimSpace(record[2]),
+					Name:          strings.TrimSpace(record[3]),
+					Status:        strings.TrimSpace(record[4]),
+					JoinedMethod:  strings.TrimSpace(record[5]),
+					JoinedTimestamp: strings.TrimSpace(record[6]),
+					// Backward compatibility
+					AliasName:     strings.TrimSpace(record[3]), // Name -> AliasName
+					AccountID:     strings.TrimSpace(record[0]), // ID -> AccountID
+				}
+			} else if len(record) >= 2 {
+				// Old format: alias_name, account_id
+				account = AccountInfo{
+					ID:            strings.TrimSpace(record[1]), // account_id -> ID
+					Name:          strings.TrimSpace(record[0]), // alias_name -> Name
+					AliasName:     strings.TrimSpace(record[0]),
+					AccountID:     strings.TrimSpace(record[1]),
+				}
+			}
+			
+			if account.ID != "" {
+				accounts = append(accounts, account)
+			}
 		}
 	}
 	
@@ -204,10 +240,22 @@ func outputJSON(accounts []AccountInfo) {
 
 func outputTable(accounts []AccountInfo) {
 	table := tablewriter.NewTable(os.Stdout)
-	table.Header("Alias Name", "Account ID")
+	table.Header("ID", "ARN", "Email", "Name", "Status", "Joined Method", "Joined Timestamp")
 
 	for _, account := range accounts {
-		table.Append([]any{account.AliasName, account.AccountID})
+		err := table.Append([]any{
+			account.ID, 
+			account.Arn, 
+			account.Email, 
+			account.Name, 
+			account.Status, 
+			account.JoinedMethod, 
+			account.JoinedTimestamp,
+		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error appending table row: %v\n", err)
+			continue
+		}
 	}
 
 	table.Render()
@@ -217,11 +265,25 @@ func outputCSV(accounts []AccountInfo) {
 	defer writer.Flush()
 
 	// Write header
-	writer.Write([]string{"alias_name", "account_id"})
+	if err := writer.Write([]string{"id", "arn", "email", "name", "status", "joined_method", "joined_timestamp"}); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing CSV header: %v\n", err)
+		return
+	}
 
 	// Write data
 	for _, account := range accounts {
-		writer.Write([]string{account.AliasName, account.AccountID})
+		if err := writer.Write([]string{
+			account.ID, 
+			account.Arn, 
+			account.Email, 
+			account.Name, 
+			account.Status, 
+			account.JoinedMethod, 
+			account.JoinedTimestamp,
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing CSV row: %v\n", err)
+			continue
+		}
 	}
 }
 
@@ -252,10 +314,27 @@ func updateAccountInfoFromAWS(filePath string) error {
 	var accounts []AccountInfo
 	for _, account := range result.Accounts {
 		if account.Id != nil && account.Name != nil {
-			accounts = append(accounts, AccountInfo{
+			accountInfo := AccountInfo{
+				ID:     *account.Id,
+				Name:   *account.Name,
+				// Backward compatibility
 				AliasName: *account.Name,
 				AccountID: *account.Id,
-			})
+			}
+			
+			if account.Arn != nil {
+				accountInfo.Arn = *account.Arn
+			}
+			if account.Email != nil {
+				accountInfo.Email = *account.Email
+			}
+			accountInfo.Status = string(account.Status)
+			accountInfo.JoinedMethod = string(account.JoinedMethod)
+			if account.JoinedTimestamp != nil {
+				accountInfo.JoinedTimestamp = account.JoinedTimestamp.Format("2006-01-02T15:04:05.000000-07:00")
+			}
+			
+			accounts = append(accounts, accountInfo)
 		}
 	}
 
@@ -274,13 +353,21 @@ func saveAccountInfoToCSV(filePath string, accounts []AccountInfo) error {
 	defer writer.Flush()
 
 	// Write header
-	if err := writer.Write([]string{"alias_name", "account_id"}); err != nil {
+	if err := writer.Write([]string{"id", "arn", "email", "name", "status", "joined_method", "joined_timestamp"}); err != nil {
 		return fmt.Errorf("failed to write CSV header: %w", err)
 	}
 
 	// Write data
 	for _, account := range accounts {
-		if err := writer.Write([]string{account.AliasName, account.AccountID}); err != nil {
+		if err := writer.Write([]string{
+			account.ID, 
+			account.Arn, 
+			account.Email, 
+			account.Name, 
+			account.Status, 
+			account.JoinedMethod, 
+			account.JoinedTimestamp,
+		}); err != nil {
 			return fmt.Errorf("failed to write CSV data: %w", err)
 		}
 	}

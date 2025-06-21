@@ -38,6 +38,7 @@ func main() {
 	var jsonOutput bool
 	var tableOutput bool
 	var csvOutput bool
+	var formatFlag string
 	var nameSearch string
 	var rootCmd = &cobra.Command{
 		Use:     "awsid [alias_name]",
@@ -46,6 +47,13 @@ func main() {
 		Version: Version,
 		Args:  cobra.MinimumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
+			// Resolve format flags with priority handling
+			resolvedFormat, err := ResolveFormatFlags(formatFlag, jsonOutput, tableOutput, csvOutput)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+
 			// Get home directory
 			homeDir, err := os.UserHomeDir()
 			if err != nil {
@@ -88,7 +96,7 @@ func main() {
 				}
 
 				// If JSON output is requested
-				if jsonOutput {
+				if resolvedFormat == "json" {
 					outputJSON(matchingAccounts)
 					return
 				}
@@ -104,9 +112,9 @@ func main() {
 
 				// If exact match found
 				if len(exactMatch) > 0 {
-					if tableOutput {
+					if resolvedFormat == "table" {
 						outputTable(exactMatch)
-					} else if csvOutput {
+					} else if resolvedFormat == "csv" {
 						outputCSV(exactMatch)
 					} else {
 						fmt.Println(exactMatch[0].AccountID)
@@ -115,13 +123,13 @@ func main() {
 				}
 
 				// If table output is requested for partial matches
-				if tableOutput {
+				if resolvedFormat == "table" {
 					outputTable(matchingAccounts)
 					return
 				}
 
 				// If CSV output is requested for partial matches
-				if csvOutput {
+				if resolvedFormat == "csv" {
 					outputCSV(matchingAccounts)
 					return
 				}
@@ -140,11 +148,11 @@ func main() {
 				os.Exit(1)
 			} else {
 				// No search term provided, list all accounts
-				if jsonOutput {
+				if resolvedFormat == "json" {
 					outputJSON(accounts)
-				} else if tableOutput {
+				} else if resolvedFormat == "table" {
 					outputTable(accounts)
-				} else if csvOutput {
+				} else if resolvedFormat == "csv" {
 					outputCSV(accounts)
 				} else {
 					for _, account := range accounts {
@@ -159,6 +167,7 @@ func main() {
 	rootCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 	rootCmd.Flags().BoolVar(&tableOutput, "table", false, "Output in table format")
 	rootCmd.Flags().BoolVar(&csvOutput, "csv", false, "Output in CSV format")
+	rootCmd.Flags().StringVar(&formatFlag, "format", "", "Output format (json|table|csv|default). Takes priority over individual format flags")
 	rootCmd.Flags().StringVar(&nameSearch, "name", "", "Search by account name (takes priority over positional argument)")
 
 	if err := rootCmd.Execute(); err != nil {

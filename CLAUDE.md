@@ -52,16 +52,16 @@ GOOS=windows GOARCH=amd64 go build -o awsid_windows_amd64.exe
 
 ## Dependencies
 
-- `github.com/spf13/cobra`: CLI framework
-- `github.com/olekukonko/tablewriter`: Table output formatting
-- `github.com/aws/aws-sdk-go-v2/*`: AWS SDK for Organizations API
+- `github.com/spf13/cobra` - CLI framework
+- `github.com/olekukonko/tablewriter` - Table output formatting
+- `github.com/aws/aws-sdk-go-v2/*` - AWS SDK for Organizations API
 
 ## Important Notes
 
 - AWS Organizations API calls are hardcoded to use us-east-1 region
 - Account info file location is fixed at `~/.aws/account_info`
 - No test files exist currently - consider adding when implementing new features
-- Version is hardcoded in main.go as a const (currently "0.4.0")
+- Version is hardcoded in main.go as a const (currently "0.5.0")
 
 ## AWS Organizations Access
 

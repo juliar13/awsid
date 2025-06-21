@@ -38,10 +38,11 @@ func main() {
 	var jsonOutput bool
 	var tableOutput bool
 	var csvOutput bool
+	var nameSearch string
 	var rootCmd = &cobra.Command{
 		Use:     "awsid [alias_name]",
 		Short:   "Get AWS account ID from alias name",
-		Long:    "A CLI tool to get AWS account ID from alias name",
+		Long:    "A CLI tool to get AWS account ID from alias name. Supports both positional arguments and --name option.",
 		Version: Version,
 		Args:  cobra.MinimumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -68,8 +69,77 @@ func main() {
 				os.Exit(1)
 			}
 
-			// If no arguments, list all accounts
-			if len(args) == 0 {
+			// Determine search term: --name option takes priority over positional argument
+			var searchTerm string
+			if nameSearch != "" {
+				searchTerm = nameSearch
+			} else if len(args) > 0 {
+				searchTerm = args[0]
+			}
+
+			// If search term is provided, search for matching accounts
+			if searchTerm != "" {
+				matchingAccounts := []AccountInfo{}
+
+				for _, account := range accounts {
+					if strings.Contains(account.AliasName, searchTerm) {
+						matchingAccounts = append(matchingAccounts, account)
+					}
+				}
+
+				// If JSON output is requested
+				if jsonOutput {
+					outputJSON(matchingAccounts)
+					return
+				}
+
+				// Check for exact match first
+				exactMatch := []AccountInfo{}
+				for _, account := range matchingAccounts {
+					if account.AliasName == searchTerm {
+						exactMatch = append(exactMatch, account)
+						break
+					}
+				}
+
+				// If exact match found
+				if len(exactMatch) > 0 {
+					if tableOutput {
+						outputTable(exactMatch)
+					} else if csvOutput {
+						outputCSV(exactMatch)
+					} else {
+						fmt.Println(exactMatch[0].AccountID)
+					}
+					return
+				}
+
+				// If table output is requested for partial matches
+				if tableOutput {
+					outputTable(matchingAccounts)
+					return
+				}
+
+				// If CSV output is requested for partial matches
+				if csvOutput {
+					outputCSV(matchingAccounts)
+					return
+				}
+
+				// If partial matches found, print them
+				if len(matchingAccounts) > 0 {
+					for _, account := range matchingAccounts {
+						fmt.Printf("ID: %s | ARN: %s | Email: %s | Name: %s | Status: %s | Method: %s | Joined: %s\n", 
+							account.ID, account.Arn, account.Email, account.Name, account.Status, account.JoinedMethod, account.JoinedTimestamp)
+					}
+					return
+				}
+
+				// No matches found
+				fmt.Fprintf(os.Stderr, "No account found with alias name: %s\n", searchTerm)
+				os.Exit(1)
+			} else {
+				// No search term provided, list all accounts
 				if jsonOutput {
 					outputJSON(accounts)
 				} else if tableOutput {
@@ -82,76 +152,14 @@ func main() {
 							account.ID, account.Arn, account.Email, account.Name, account.Status, account.JoinedMethod, account.JoinedTimestamp)
 					}
 				}
-				return
 			}
-
-			// If argument is provided, search for matching accounts
-			searchTerm := args[0]
-			matchingAccounts := []AccountInfo{}
-
-			for _, account := range accounts {
-				if strings.Contains(account.AliasName, searchTerm) {
-					matchingAccounts = append(matchingAccounts, account)
-				}
-			}
-
-			// If JSON output is requested
-			if jsonOutput {
-				outputJSON(matchingAccounts)
-				return
-			}
-
-			// Check for exact match first
-			exactMatch := []AccountInfo{}
-			for _, account := range matchingAccounts {
-				if account.AliasName == searchTerm {
-					exactMatch = append(exactMatch, account)
-					break
-				}
-			}
-
-			// If exact match found
-			if len(exactMatch) > 0 {
-				if tableOutput {
-					outputTable(exactMatch)
-				} else if csvOutput {
-					outputCSV(exactMatch)
-				} else {
-					fmt.Println(exactMatch[0].AccountID)
-				}
-				return
-			}
-
-			// If table output is requested for partial matches
-			if tableOutput {
-				outputTable(matchingAccounts)
-				return
-			}
-
-			// If CSV output is requested for partial matches
-			if csvOutput {
-				outputCSV(matchingAccounts)
-				return
-			}
-
-			// If partial matches found, print them
-			if len(matchingAccounts) > 0 {
-				for _, account := range matchingAccounts {
-					fmt.Printf("ID: %s | ARN: %s | Email: %s | Name: %s | Status: %s | Method: %s | Joined: %s\n", 
-						account.ID, account.Arn, account.Email, account.Name, account.Status, account.JoinedMethod, account.JoinedTimestamp)
-				}
-				return
-			}
-
-			// No matches found
-			fmt.Fprintf(os.Stderr, "No account found with alias name: %s\n", searchTerm)
-			os.Exit(1)
 		},
 	}
 
 	rootCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 	rootCmd.Flags().BoolVar(&tableOutput, "table", false, "Output in table format")
 	rootCmd.Flags().BoolVar(&csvOutput, "csv", false, "Output in CSV format")
+	rootCmd.Flags().StringVar(&nameSearch, "name", "", "Search by account name (takes priority over positional argument)")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

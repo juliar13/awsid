@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AWSID is a Go CLI tool that retrieves AWS account IDs from alias names using AWS Organizations API. It's a single-file Go application (`main.go`) that automatically fetches account information and provides multiple output formats (standard, JSON, table, CSV).
+AWSID is a Go CLI tool that retrieves AWS account IDs from alias names using the AWS Organizations API. It's a single-file Go application (`main.go`) that automatically fetches account information and provides multiple output formats (standard, JSON, table, CSV).
 
 ## Architecture
 

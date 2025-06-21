@@ -243,7 +243,7 @@ func outputTable(accounts []AccountInfo) {
 	table.Header("ID", "ARN", "Email", "Name", "Status", "Joined Method", "Joined Timestamp")
 
 	for _, account := range accounts {
-		table.Append([]any{
+		err := table.Append([]any{
 			account.ID, 
 			account.Arn, 
 			account.Email, 
@@ -252,6 +252,10 @@ func outputTable(accounts []AccountInfo) {
 			account.JoinedMethod, 
 			account.JoinedTimestamp,
 		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error appending table row: %v\n", err)
+			continue
+		}
 	}
 
 	table.Render()
@@ -261,11 +265,14 @@ func outputCSV(accounts []AccountInfo) {
 	defer writer.Flush()
 
 	// Write header
-	writer.Write([]string{"id", "arn", "email", "name", "status", "joined_method", "joined_timestamp"})
+	if err := writer.Write([]string{"id", "arn", "email", "name", "status", "joined_method", "joined_timestamp"}); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing CSV header: %v\n", err)
+		return
+	}
 
 	// Write data
 	for _, account := range accounts {
-		writer.Write([]string{
+		if err := writer.Write([]string{
 			account.ID, 
 			account.Arn, 
 			account.Email, 
@@ -273,7 +280,10 @@ func outputCSV(accounts []AccountInfo) {
 			account.Status, 
 			account.JoinedMethod, 
 			account.JoinedTimestamp,
-		})
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing CSV row: %v\n", err)
+			continue
+		}
 	}
 }
 

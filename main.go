@@ -176,8 +176,8 @@ func resolveFormatFlags(formatOption string, jsonOutput, tableOutput, csvOutput 
 		return "csv", nil
 	}
 	
-	// Default format
-	return "table", nil
+	// Default format (no flags specified - backward compatible behavior)
+	return "default", nil
 }
 
 // validateFormat validates the format string
@@ -204,7 +204,7 @@ func outputByFormat(accounts []AccountInfo, format string, isExactMatch bool) {
 		outputTable(accounts)
 	case "csv":
 		outputCSV(accounts)
-	default:
+	case "default":
 		// Default format: show account IDs for exact matches, detailed info for partial matches
 		if isExactMatch && len(accounts) > 0 {
 			fmt.Println(accounts[0].AccountID)
@@ -214,6 +214,9 @@ func outputByFormat(accounts []AccountInfo, format string, isExactMatch bool) {
 					account.ID, account.Arn, account.Email, account.Name, account.Status, account.JoinedMethod, account.JoinedTimestamp)
 			}
 		}
+	default:
+		// Fallback to table format
+		outputTable(accounts)
 	}
 }
 

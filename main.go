@@ -39,6 +39,7 @@ func main() {
 	var tableOutput bool
 	var csvOutput bool
 	var nameSearch string
+	var formatOption string
 	var rootCmd = &cobra.Command{
 		Use:     "awsid [alias_name]",
 		Short:   "Get AWS account ID from alias name",
@@ -46,6 +47,12 @@ func main() {
 		Version: Version,
 		Args:  cobra.MinimumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
+			// Validate and resolve format flags
+			resolvedFormat, err := resolveFormatFlags(formatOption, jsonOutput, tableOutput, csvOutput)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
 			// Get home directory
 			homeDir, err := os.UserHomeDir()
 			if err != nil {
@@ -87,12 +94,6 @@ func main() {
 					}
 				}
 
-				// If JSON output is requested
-				if jsonOutput {
-					outputJSON(matchingAccounts)
-					return
-				}
-
 				// Check for exact match first
 				exactMatch := []AccountInfo{}
 				for _, account := range matchingAccounts {
@@ -104,34 +105,13 @@ func main() {
 
 				// If exact match found
 				if len(exactMatch) > 0 {
-					if tableOutput {
-						outputTable(exactMatch)
-					} else if csvOutput {
-						outputCSV(exactMatch)
-					} else {
-						fmt.Println(exactMatch[0].AccountID)
-					}
+					outputByFormat(exactMatch, resolvedFormat, true)
 					return
 				}
 
-				// If table output is requested for partial matches
-				if tableOutput {
-					outputTable(matchingAccounts)
-					return
-				}
-
-				// If CSV output is requested for partial matches
-				if csvOutput {
-					outputCSV(matchingAccounts)
-					return
-				}
-
-				// If partial matches found, print them
+				// If partial matches found
 				if len(matchingAccounts) > 0 {
-					for _, account := range matchingAccounts {
-						fmt.Printf("ID: %s | ARN: %s | Email: %s | Name: %s | Status: %s | Method: %s | Joined: %s\n", 
-							account.ID, account.Arn, account.Email, account.Name, account.Status, account.JoinedMethod, account.JoinedTimestamp)
-					}
+					outputByFormat(matchingAccounts, resolvedFormat, false)
 					return
 				}
 
@@ -140,18 +120,7 @@ func main() {
 				os.Exit(1)
 			} else {
 				// No search term provided, list all accounts
-				if jsonOutput {
-					outputJSON(accounts)
-				} else if tableOutput {
-					outputTable(accounts)
-				} else if csvOutput {
-					outputCSV(accounts)
-				} else {
-					for _, account := range accounts {
-						fmt.Printf("ID: %s | ARN: %s | Email: %s | Name: %s | Status: %s | Method: %s | Joined: %s\n", 
-							account.ID, account.Arn, account.Email, account.Name, account.Status, account.JoinedMethod, account.JoinedTimestamp)
-					}
-				}
+				outputByFormat(accounts, resolvedFormat, false)
 			}
 		},
 	}
@@ -159,11 +128,95 @@ func main() {
 	rootCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 	rootCmd.Flags().BoolVar(&tableOutput, "table", false, "Output in table format")
 	rootCmd.Flags().BoolVar(&csvOutput, "csv", false, "Output in CSV format")
+	rootCmd.Flags().StringVar(&formatOption, "format", "", "Output format (json, table, csv)")
 	rootCmd.Flags().StringVar(&nameSearch, "name", "", "Search by account name (takes priority over positional argument)")
+
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+// resolveFormatFlags resolves format conflicts and determines final format
+func resolveFormatFlags(formatOption string, jsonOutput, tableOutput, csvOutput bool) (string, error) {
+	// Count active format flags
+	activeFlags := 0
+	if jsonOutput {
+		activeFlags++
+	}
+	if tableOutput {
+		activeFlags++
+	}
+	if csvOutput {
+		activeFlags++
+	}
+	
+	// Check for multiple individual format flags
+	if activeFlags > 1 {
+		return "", fmt.Errorf("multiple output format flags specified. Use only one format option")
+	}
+	
+	// If --format is specified, validate and use it (takes priority)
+	if formatOption != "" {
+		if err := validateFormat(formatOption); err != nil {
+			return "", err
+		}
+		return formatOption, nil
+	}
+	
+	// If individual format flag is specified, use it
+	if jsonOutput {
+		return "json", nil
+	}
+	if tableOutput {
+		return "table", nil
+	}
+	if csvOutput {
+		return "csv", nil
+	}
+	
+	// Default format (no flags specified - backward compatible behavior)
+	return "default", nil
+}
+
+// validateFormat validates the format string
+func validateFormat(format string) error {
+	if format == "" {
+		return fmt.Errorf("output format cannot be empty. Supported formats: json, table, csv")
+	}
+	
+	validFormats := []string{"json", "table", "csv"}
+	for _, valid := range validFormats {
+		if format == valid {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid output format \"%s\". Supported formats: json, table, csv", format)
+}
+
+// outputByFormat outputs accounts using the specified format
+func outputByFormat(accounts []AccountInfo, format string, isExactMatch bool) {
+	switch format {
+	case "json":
+		outputJSON(accounts)
+	case "table":
+		outputTable(accounts)
+	case "csv":
+		outputCSV(accounts)
+	case "default":
+		// Default format: show account IDs for exact matches, detailed info for partial matches
+		if isExactMatch && len(accounts) > 0 {
+			fmt.Println(accounts[0].AccountID)
+		} else {
+			for _, account := range accounts {
+				fmt.Printf("ID: %s | ARN: %s | Email: %s | Name: %s | Status: %s | Method: %s | Joined: %s\n", 
+					account.ID, account.Arn, account.Email, account.Name, account.Status, account.JoinedMethod, account.JoinedTimestamp)
+			}
+		}
+	default:
+		// Fallback to table format
+		outputTable(accounts)
 	}
 }
 

@@ -67,7 +67,34 @@ awsid yamasaki
 # yamasaki-prod: 123456789014
 ```
 
+アカウント名で検索（--nameオプション）：
+
+```bash
+awsid --name test
+# test を含むアカウント名で検索
+```
+
 ## 出力形式
+
+出力形式は以下の方法で指定できます：
+
+### 統一フォーマットオプション（推奨）
+
+```bash
+awsid --format json    # JSON形式
+awsid --format table   # テーブル形式  
+awsid --format csv     # CSV形式
+```
+
+### 個別フォーマットフラグ（下位互換性）
+
+```bash
+awsid --json          # JSON形式
+awsid --table         # テーブル形式
+awsid --csv           # CSV形式
+```
+
+**注意**: `--format`オプションと個別フラグが同時に指定された場合、`--format`が優先されます。
 
 ### 標準出力（デフォルト）
 
@@ -77,61 +104,60 @@ awsid yamasaki-test
 # 出力: 123456789012
 ```
 
-部分一致や全表示の場合は「エイリアス名: アカウントID」形式：
+部分一致や全表示の場合は詳細情報：
 ```bash
 awsid yamasaki
 # 出力:
-# yamasaki-test: 123456789012
-# yamasaki-test-dev: 123456789013
-# yamasaki-prod: 123456789014
+# ID: 123456789012 | ARN: arn:aws:organizations::... | Email: ... | Name: yamasaki-test | Status: ACTIVE | Method: CREATED | Joined: 2024-01-01T...
 ```
 
-### JSON形式（--jsonフラグ）
+### JSON形式
 
 ```bash
+awsid yamasaki --format json
+# または
 awsid yamasaki --json
 # 出力:
 # {
 #     "account_info": [
 #         {
+#             "id": "123456789012",
+#             "arn": "arn:aws:organizations::...",
+#             "email": "test@example.com",
+#             "name": "yamasaki-test",
+#             "status": "ACTIVE",
+#             "joined_method": "CREATED",
+#             "joined_timestamp": "2024-01-01T...",
 #             "alias_name": "yamasaki-test",
 #             "account_id": "123456789012"
-#         },
-#         {
-#             "alias_name": "yamasaki-test-dev", 
-#             "account_id": "123456789013"
-#         },
-#         {
-#             "alias_name": "yamasaki-prod",
-#             "account_id": "123456789014"
 #         }
 #     ]
 # }
 ```
 
-### テーブル形式（--tableフラグ）
+### テーブル形式
 
 ```bash
+awsid yamasaki --format table
+# または  
 awsid yamasaki --table
 # 出力:
-# +-------------------+----------------+
-# | ALIAS NAME        | ACCOUNT ID     |
-# +-------------------+----------------+
-# | yamasaki-test     | 123456789012   |
-# | yamasaki-test-dev | 123456789013   |
-# | yamasaki-prod     | 123456789014   |
-# +-------------------+----------------+
+# ┌──────────────┬─────────────────┬───────────────────┬───────────────┬────────┬───────────────┬──────────────────┐
+# │      ID      │       ARN       │       EMAIL       │     NAME      │ STATUS │ JOINED METHOD │ JOINED TIMESTAMP │
+# ├──────────────┼─────────────────┼───────────────────┼───────────────┼────────┼───────────────┼──────────────────┤
+# │ 123456789012 │ arn:aws:org...  │ test@example.com  │ yamasaki-test │ ACTIVE │ CREATED       │ 2024-01-01T...   │
+# └──────────────┴─────────────────┴───────────────────┴───────────────┴────────┴───────────────┴──────────────────┘
 ```
 
-### CSV形式（--csvフラグ）
+### CSV形式
 
 ```bash
+awsid yamasaki --format csv
+# または
 awsid yamasaki --csv
 # 出力:
-# alias_name,account_id
-# yamasaki-test,123456789012
-# yamasaki-test-dev,123456789013
-# yamasaki-prod,123456789014
+# id,arn,email,name,status,joined_method,joined_timestamp
+# 123456789012,arn:aws:organizations::...,test@example.com,yamasaki-test,ACTIVE,CREATED,2024-01-01T...
 ```
 
 ## ライセンス

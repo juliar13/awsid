@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -40,6 +41,8 @@ func main() {
 	var csvOutput bool
 	var nameSearch string
 	var formatOption string
+	var sortField string
+	var sortDesc string
 	var rootCmd = &cobra.Command{
 		Use:     "awsid [alias_name]",
 		Short:   "Get AWS account ID from alias name",
@@ -49,6 +52,13 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			// Validate and resolve format flags
 			resolvedFormat, err := resolveFormatFlags(formatOption, jsonOutput, tableOutput, csvOutput)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+			
+			// Validate and resolve sort flags
+			resolvedSort, err := resolveSortFlags(sortField, sortDesc)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				os.Exit(1)
@@ -105,12 +115,14 @@ func main() {
 
 				// If exact match found
 				if len(exactMatch) > 0 {
+					sortAccounts(exactMatch, resolvedSort)
 					outputByFormat(exactMatch, resolvedFormat, true)
 					return
 				}
 
 				// If partial matches found
 				if len(matchingAccounts) > 0 {
+					sortAccounts(matchingAccounts, resolvedSort)
 					outputByFormat(matchingAccounts, resolvedFormat, false)
 					return
 				}
@@ -120,6 +132,7 @@ func main() {
 				os.Exit(1)
 			} else {
 				// No search term provided, list all accounts
+				sortAccounts(accounts, resolvedSort)
 				outputByFormat(accounts, resolvedFormat, false)
 			}
 		},
@@ -130,6 +143,8 @@ func main() {
 	rootCmd.Flags().BoolVar(&csvOutput, "csv", false, "Output in CSV format")
 	rootCmd.Flags().StringVar(&formatOption, "format", "", "Output format (json, table, csv)")
 	rootCmd.Flags().StringVar(&nameSearch, "name", "", "Search by account name (takes priority over positional argument)")
+	rootCmd.Flags().StringVar(&sortField, "sort", "", "Sort by field (id, name, email, status, joined_timestamp, joined_method)")
+	rootCmd.Flags().StringVar(&sortDesc, "sort-desc", "", "Sort by field in descending order (id, name, email, status, joined_timestamp, joined_method)")
 
 
 	if err := rootCmd.Execute(); err != nil {
@@ -193,6 +208,90 @@ func validateFormat(format string) error {
 		}
 	}
 	return fmt.Errorf("invalid output format \"%s\". Supported formats: json, table, csv", format)
+}
+
+// SortInfo holds sort configuration
+type SortInfo struct {
+	Field      string
+	Descending bool
+}
+
+// resolveSortFlags validates and resolves sort configuration
+func resolveSortFlags(sortField, sortDesc string) (*SortInfo, error) {
+	// Check for conflicting sort flags
+	if sortField != "" && sortDesc != "" {
+		return nil, fmt.Errorf("cannot specify both --sort and --sort-desc. Use only one sort option")
+	}
+	
+	// No sort specified
+	if sortField == "" && sortDesc == "" {
+		return &SortInfo{}, nil
+	}
+	
+	// Determine field and direction
+	var field string
+	var desc bool
+	
+	if sortField != "" {
+		field = sortField
+		desc = false
+	} else {
+		field = sortDesc
+		desc = true
+	}
+	
+	// Validate sort field
+	if err := validateSortField(field); err != nil {
+		return nil, err
+	}
+	
+	return &SortInfo{Field: field, Descending: desc}, nil
+}
+
+// validateSortField validates the sort field name
+func validateSortField(field string) error {
+	validFields := []string{"id", "name", "email", "status", "joined_timestamp", "joined_method"}
+	for _, valid := range validFields {
+		if field == valid {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid sort field \"%s\". Supported fields: id, name, email, status, joined_timestamp, joined_method", field)
+}
+
+// sortAccounts sorts accounts based on the provided sort configuration
+func sortAccounts(accounts []AccountInfo, sortInfo *SortInfo) {
+	if sortInfo.Field == "" {
+		return // No sorting required
+	}
+	
+	sort.Slice(accounts, func(i, j int) bool {
+		var result bool
+		
+		switch sortInfo.Field {
+		case "id":
+			result = accounts[i].ID < accounts[j].ID
+		case "name":
+			result = strings.ToLower(accounts[i].Name) < strings.ToLower(accounts[j].Name)
+		case "email":
+			result = strings.ToLower(accounts[i].Email) < strings.ToLower(accounts[j].Email)
+		case "status":
+			result = accounts[i].Status < accounts[j].Status
+		case "joined_timestamp":
+			result = accounts[i].JoinedTimestamp < accounts[j].JoinedTimestamp
+		case "joined_method":
+			result = accounts[i].JoinedMethod < accounts[j].JoinedMethod
+		default:
+			return false // Should not happen due to validation
+		}
+		
+		// Reverse for descending order
+		if sortInfo.Descending {
+			result = !result
+		}
+		
+		return result
+	})
 }
 
 // outputByFormat outputs accounts using the specified format

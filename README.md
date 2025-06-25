@@ -74,6 +74,15 @@ awsid --name test
 # test を含むアカウント名で検索
 ```
 
+結果をソート：
+
+```bash
+awsid --sort name              # アカウント名昇順
+awsid --sort-desc name         # アカウント名降順
+awsid --sort joined_timestamp  # 作成日昇順
+awsid --sort-desc joined_timestamp  # 作成日降順（新しい順）
+```
+
 ## 出力形式
 
 出力形式は以下の方法で指定できます：
@@ -95,6 +104,44 @@ awsid --csv           # CSV形式
 ```
 
 **注意**: `--format`オプションと個別フラグが同時に指定された場合、`--format`が優先されます。
+
+## ソート機能
+
+結果は以下のフィールドでソートできます：
+
+### ソートオプション
+
+```bash
+awsid --sort <field>        # 昇順ソート
+awsid --sort-desc <field>   # 降順ソート
+```
+
+### 利用可能なソートフィールド
+
+- `id` - アカウントID
+- `name` - アカウント名
+- `email` - メールアドレス
+- `status` - ステータス
+- `joined_timestamp` - 作成日時
+- `joined_method` - 参加方法
+
+### ソート例
+
+```bash
+# アカウント名でアルファベット順
+awsid --sort name --format table
+
+# 最新作成順
+awsid --sort-desc joined_timestamp
+
+# 検索結果をソート
+awsid --name test --sort name
+
+# JSON形式でメールアドレス順
+awsid --sort email --format json
+```
+
+**注意**: `--sort`と`--sort-desc`は同時に指定できません。
 
 ### 標準出力（デフォルト）
 

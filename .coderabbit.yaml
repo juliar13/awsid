@@ -1,0 +1,32 @@
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  language: ja
+  path_instructions:
+    - path: "*.go"
+      instructions: |
+        - Focus on Go best practices and idiomatic code
+        - Check for proper error handling
+        - Verify AWS SDK usage patterns
+        - Look for potential security issues with credentials
+    - path: "*.md"
+      instructions: |
+        - Check for clarity and accuracy of documentation
+        - Ensure examples are up to date
+    - path: "go.mod"
+      instructions: |
+        - Verify dependency versions are appropriate
+        - Check for unused dependencies
+  auto_review:
+    enabled: true
+    drafts: false
+  ignore:
+    - "dist/*"
+    - "vendor/*"
+    - "*.log"
+chat:
+  auto_reply: true
